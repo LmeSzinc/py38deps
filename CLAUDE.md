@@ -32,10 +32,6 @@ envs/cp314/python.exe
 envs/cp314t/python.exe
 ```
 
-### 测试要求
-
-在运行测试的时候，先在 cp38 下进行测试。测试通过了之后再进行其他版本的测试
-
 ### 优先使用codewhale内置工具
 
 优先使用 codewhale 内置工具而不是调用外部命令行。如果遇到权限问题再去尝试使用命令行访问。如果在任务中多次需要访问一个外部路径，提示用户可以执行 `/trust add {PATH}` 添加信任，这样下一次可以使用内置工具进行访问。
@@ -62,6 +58,10 @@ envs/cp314t/python.exe
 不要直接使用 `python` 命令，因为项目有单独配好的虚拟环境，不使用全局 python 环境。
 
 在运行项目内文件的时候不要直接执行 `python module/config/gen.py` 而是使用 `python -m module.config.gen` 作为模块运行，这样运行路径会在项目根目录。
+
+### 编写计划文档
+
+如果用户要求编写计划文档，那么将计划写入到 markdown 文件 `doc/{yyyy}-{mm}-{dd}_{title}.md`，比如 `doc/2026-08-13_somethong-matters.md`
 
 ### PowerShell兼容提示
 
@@ -155,4 +155,136 @@ git fetch upstream --tags
 # 注意：如果 origin 远程已经存在该分支，则直接 checkout
 git checkout <BACKPORT_BRANCH>
 ```
+
+
+
+## 反向移植流程
+
+1. 回退 git 历史到最新版本的 tag，因为我们需要构建的是最新版本的反向移植，不应该引入未发布的内容
+
+2. 查找 git 历史，看看是哪些 commit 移除了旧版本的支持，回退这些修改。
+
+3. 找到废除旧版本支持后的变更，查看变更是否引入了旧版本不支持的python语法。
+4. 在 cp38 下进行测试，确认基本行为正确，并且没有不支持的语法
+5. 测试通过了之后再在其余 python 版本下运行完整测试。
+
+> 对于纯python实现的库，可以直接使用测试环境的python运行时进行测试，不需要把库安装到环境中。
+>
+> 对于需要编译的库，才安装到环境中。
+
+## 版本 Cheatsheet（构建与测试工具速查）
+
+以下版本限制基于 cp38 ~ cp314 全环境实测（hyperframe 移植时验证，2026-08），后续适配其他库时直接套用，无需再纠结版本选择。
+
+### 核心原则
+
+- 反向移植通常只改元数据（pyproject.toml / CI / CHANGELOG），**先检查所有源文件是否都以 `from __future__ import annotations` 开头**，是则源码一般无需回退（见下方语法速查）
+- cp38 分支用旧版工具，cp39+ 分支保持上游版本要求，通过 PEP 508 环境标记（`; python_version < '3.9'`）区分
+- 如果上游声明的工具版本要求高于 3.8 可解析的上限，cp38 下 `pip wheel .` / `pip install` 会直接报 `No matching distribution found`，这就是需要加环境标记的信号
+
+### build-system：构建隔离依赖（cp38 构建 wheel 的硬约束）
+
+| 包 | 最后支持 3.8 的版本 | 3.9+ 可用 | 说明 |
+| --- | --- | --- | --- |
+| setuptools | 75.3.2（75.4.0 起要求 >=3.9，83.0.0 起要求 >=3.10） | 75.4.0+ | cp38 分支必须 `<75.4` |
+| wheel | 0.45.1（0.46.0 起要求 >=3.9） | 0.46.0+ | 上游若声明 wheel 依赖，cp38 分支必须 `<0.46` |
+
+推荐写法（cp38 分支加环境标记；cp39+ 分支保留上游的版本要求即可）：
+
+```toml
+[build-system]
+requires = [
+  "setuptools>=68,<75.4 ; python_version < '3.9'",
+  "setuptools>=82 ; python_version >= '3.9'",  # keep upstream requirement
+  "wheel>=0.45.1,<0.46 ; python_version < '3.9'",
+  "wheel>=0.46.3 ; python_version >= '3.9'",   # omit if upstream has no wheel dep
+]
+build-backend = "setuptools.build_meta"
+```
+
+### 测试依赖：pytest 生态（cp38 下安装的硬约束）
+
+| 包 | 最后支持 3.8 的版本 | 3.9+ 可用 | 说明 |
+| --- | --- | --- | --- |
+| pytest | 8.3.5（8.4.0 起要求 >=3.9，9.0.0 起要求 >=3.10） | 8.4.0+ | 约束 `<9` 时 cp38 自动解析到 8.3.5，无需环境标记 |
+| pytest-cov | 5.0.0（6.0.0 起要求 >=3.9） | 6.0.0+ | cp38 分支必须 `<6` |
+| pytest-xdist | 3.6.x（3.7.0 起要求 >=3.9） | 3.7.0+ | 约束 `<4` 时 cp38 自动解析到 3.6.x，无需环境标记 |
+| coverage | 7.6.1（7.7.0 起要求 >=3.9，作为 pytest-cov 间接依赖） | 7.7.0+ | pip 自动解析，无需单独处理 |
+
+推荐写法：
+
+```toml
+testing = [
+  "pytest>=8.3.3,<9",
+  "pytest-cov>=6.0.0,<7 ; python_version >= '3.9'",
+  "pytest-cov>=5.0.0,<6 ; python_version < '3.9'",
+  "pytest-xdist>=3.6.1,<4",
+]
+```
+
+### 源码语法速查：哪些写法在 3.8 下安全
+
+只要源文件都以 `from __future__ import annotations` 开头：
+
+- **安全**：注解中的 `int | None`、`list[X]`、`dict[K, V]`、`tuple[A, B]`、`type[X]` 等（注解被字符串化，不参与运行时求值）
+- **安全**：函数体内的局部变量注解（如 `x: set[str] = set()`）——CPython 中局部变量注解从不求值（cp38 ~ cp314 行为一致）
+- **需要回退**：运行时真正求值的写法，例如赋值表达式右侧的 `set[str]`、`isinstance(x, int | str)`、模块级类型别名 `X = int | str` 等（3.8 下报 `TypeError: 'type' object is not subscriptable`）
+
+### 验证命令（cp38）
+
+```powershell
+# 1) 验证 build-system 在 cp38 下可解析（构建隔离）
+cd repo/<DEP_NAME>
+& "E:\ProgramData\Pycharm\py38deps\envs\cp38\python.exe" -m pip wheel . --no-deps -w $env:TEMP\hwtest
+
+# 2) 验证测试依赖在 cp38 下可安装
+& "E:\ProgramData\Pycharm\py38deps\envs\cp38\python.exe" -m pip install "pytest>=8.3.3,<9" "pytest-cov>=5.0.0,<6" "pytest-xdist>=3.6.1,<4"
+
+# 3) 运行测试（纯 Python 库；src layout 时需要 PYTHONPATH）
+$env:PYTHONPATH="src"
+& "E:\ProgramData\Pycharm\py38deps\envs\cp38\python.exe" -m pytest tests/
+```
+
+### 其他
+
+- ruff 的 `target-version` 改为 `"py38"`（ruff 是二进制工具，与 Python 版本无关，无需环境标记）
+- tox 的 `env_list` / `gh-actions` 映射增加 `py38`，CI 矩阵增加 `"3.8"`
+- twine 5.x 不支持 Metadata-Version 2.4（新版 setuptools 77+ 构建产物默认为 2.4，`twine check` 会报 `InvalidDistribution: Metadata is missing required fields: Name, Version`）。packaging 依赖建议：`"twine>=6.1.0,<6.2 ; python_version < '3.9'"` + `"twine>=6.2.0,<7 ; python_version >= '3.9'"`（twine 6.2 起要求 >=3.9）
+- ruff 新版会把 preview 规则转正，导致 `lint.select = ["ALL"]` 下旧版源码的 lint 失败（实例：PLC0415 `import` should be at the top-level，v6.1.0 时代不报、ruff 0.16 起报）。应对：跟随上游的 `# noqa` 修复，而不是限制 ruff 版本
+- 以最新发布版 tag 为基线，不要引入未发布 commit（见"反向移植流程"第 1 条）
+
+## CI 配置：手动触发与产物上传
+
+官方仓库通常配置了自动发布流程（打 tag 自动构建并发布到 PyPI / GitHub Release），而我们的二次开发仓库无法自动发布，因此移植后的 CI 需要额外做两件事：
+
+1. **手动触发按钮**：CI 增加 `workflow_dispatch` 触发事件，GitHub Actions 页面出现 "Run workflow" 按钮，可随时手动运行 CI
+2. **产物上传**：构建产物（wheel / sdist）默认不会暴露为下载，需要 `upload-artifact` 上传后才会出现在 Actions 运行页面的 Artifacts 区域（保留 90 天）
+
+```yaml
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:   # manual trigger button on GitHub Actions page
+```
+
+上传产物时注意：矩阵 job 中 tox-gh-actions 会把 packaging env 绑定到特定 python 版本（如 hyperframe 的 `3.9: py39, h2spec, lint, docs, packaging`），因此 upload step 需要加对应的 `if` 条件，避免其他 job 上传空产物：
+
+```yaml
+    - name: Upload dist
+      if: matrix.python-version == '3.9'   # packaging env runs in this job only
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
+```
+
+注意事项：
+
+- `workflow_dispatch` 需要 push 到 GitHub 后按钮才会出现
+- 版本参考：msgspec 用 `upload-artifact@v5`，python-zstandard 用 `@v4.6.2`（pin SHA），hyperframe 用 `@v4`
+- 纯 Python 库的 wheel 为 `py3-none-any`，一个产物即可覆盖 cp38 ~ cp314，无需按平台分别构建
+
+
 

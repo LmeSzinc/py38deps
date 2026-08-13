@@ -4,3 +4,6 @@
 [submodule "repo/python-zstandard"]
 	path = repo/python-zstandard
 	url = git@github.com:LmeSzinc/python-zstandard.git
+[submodule "repo/hyperframe"]
+	path = repo/hyperframe
+	url = git@github.com:LmeSzinc/hyperframe.git
