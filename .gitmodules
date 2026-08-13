@@ -1,0 +1,6 @@
+[submodule "repo/msgspec"]
+	path = repo/msgspec
+	url = git@github.com:LmeSzinc/msgspec.git
+[submodule "repo/python-zstandard"]
+	path = repo/python-zstandard
+	url = git@github.com:LmeSzinc/python-zstandard.git
