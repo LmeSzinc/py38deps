@@ -10,3 +10,6 @@
 [submodule "repo/hpack"]
 	path = repo/hpack
 	url = git@github.com:LmeSzinc/hpack.git
+[submodule "repo/h2"]
+	path = repo/h2
+	url = git@github.com:LmeSzinc/h2.git
