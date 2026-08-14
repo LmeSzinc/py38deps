@@ -13,3 +13,4 @@ As older versions of Python gradually end of like, many Python dependencies have
 | h2                | [python-hyper/h2](https://github.com/python-hyper/h2) | [LmeSzinc/h2](https://github.com/LmeSzinc/h2) | 4.4.1          | cp38+           |
 | wsproto           | [python-hyper/wsproto](https://github.com/python-hyper/wsproto) | [LmeSzinc/wsproto](https://github.com/LmeSzinc/wsproto) | 1.3.2          | cp38+           |
 | cffi              | [python-cffi/cffi](https://github.com/python-cffi/cffi) | [LmeSzinc/cffi](https://github.com/LmeSzinc/cffi) | 2.1.1          | cp38~cp15       |
+| attrs             | [python-attrs/attrs](https://github.com/python-attrs/attrs) | [LmeSzinc/attrs](https://github.com/LmeSzinc/attrs) | 26.1.0         | cp38+           |

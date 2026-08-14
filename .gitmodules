@@ -19,3 +19,6 @@
 [submodule "repo/cffi"]
 	path = repo/cffi
 	url = git@github.com:LmeSzinc/cffi.git
+[submodule "repo/attrs"]
+	path = repo/attrs
+	url = git@github.com:LmeSzinc/attrs.git
