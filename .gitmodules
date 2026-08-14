@@ -22,3 +22,9 @@
 [submodule "repo/attrs"]
 	path = repo/attrs
 	url = git@github.com:LmeSzinc/attrs.git
+[submodule "repo/idna"]
+	path = repo/idna
+	url = git@github.com:LmeSzinc/idna.git
+[submodule "repo/anyio"]
+	path = repo/anyio
+	url = git@github.com:LmeSzinc/anyio.git
