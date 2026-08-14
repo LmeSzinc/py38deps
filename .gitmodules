@@ -16,3 +16,6 @@
 [submodule "repo/wsproto"]
 	path = repo/wsproto
 	url = git@github.com:LmeSzinc/wsproto.git
+[submodule "repo/cffi"]
+	path = repo/cffi
+	url = git@github.com:LmeSzinc/cffi.git

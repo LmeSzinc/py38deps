@@ -32,6 +32,10 @@ envs/cp314/python.exe
 envs/cp314t/python.exe
 ```
 
+### 编译工具
+
+编译工具在 `mingw64/bin` 目录下，禁止自行在系统环境中安装编译工具。
+
 ### git commit 要求
 
 在修改完依赖之后，在 submodule 中执行 `git commit`，但是禁止 `git push`。
