@@ -13,3 +13,6 @@
 [submodule "repo/h2"]
 	path = repo/h2
 	url = git@github.com:LmeSzinc/h2.git
+[submodule "repo/wsproto"]
+	path = repo/wsproto
+	url = git@github.com:LmeSzinc/wsproto.git

@@ -4,10 +4,11 @@ As older versions of Python gradually end of like, many Python dependencies have
 
 ## Maintained dependencies
 
-| Official Repo                                                | Our Repo                                                     | Latest Version | Backport Low To |
-| ------------------------------------------------------------ | ------------------------------------------------------------ | -------------- | --------------- |
-| [msgspec/msgspec](https://github.com/msgspec/msgspec)        | [LmeSzinc/msgspec](https://github.com/LmeSzinc/msgspec)      | 0.21.1         | cp38            |
-| [indygreg/python-zstandard](https://github.com/indygreg/python-zstandard) | [LmeSzinc/python-zstandard](https://github.com/LmeSzinc/python-zstandard) | 0.25.0         | cp38            |
-| [python-hyper/hyperframe](https://github.com/python-hyper/hyperframe) | [LmeSzinc/hyperframe](https://github.com/LmeSzinc/hyperframe) | 6.1.0          | cp38            |
-| [python-hyper/hpack](https://github.com/python-hyper/hpack) | [LmeSzinc/hpack](https://github.com/LmeSzinc/hpack) | 4.2.0          | cp38            |
-| [python-hyper/h2](https://github.com/python-hyper/h2) | [LmeSzinc/h2](https://github.com/LmeSzinc/h2) | 4.4.1          | cp38            |
+| Dep Name          | Official Repo                                                | Our Repo                                                     | Latest Version | Backport Low To |
+| ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | -------------- | --------------- |
+| msgspec           | [msgspec/msgspec](https://github.com/msgspec/msgspec)        | [LmeSzinc/msgspec](https://github.com/LmeSzinc/msgspec)      | 0.21.1         | cp38            |
+| zstandard         | [indygreg/python-zstandard](https://github.com/indygreg/python-zstandard) | [LmeSzinc/python-zstandard](https://github.com/LmeSzinc/python-zstandard) | 0.25.0         | cp38            |
+| hyperframe        | [python-hyper/hyperframe](https://github.com/python-hyper/hyperframe) | [LmeSzinc/hyperframe](https://github.com/LmeSzinc/hyperframe) | 6.1.0          | cp38            |
+| hpack             | [python-hyper/hpack](https://github.com/python-hyper/hpack) | [LmeSzinc/hpack](https://github.com/LmeSzinc/hpack) | 4.2.0          | cp38            |
+| h2                | [python-hyper/h2](https://github.com/python-hyper/h2) | [LmeSzinc/h2](https://github.com/LmeSzinc/h2) | 4.4.1          | cp38            |
+| wsproto           | [python-hyper/wsproto](https://github.com/python-hyper/wsproto) | [LmeSzinc/wsproto](https://github.com/LmeSzinc/wsproto) | 1.3.2          | cp38            |
