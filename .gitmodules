@@ -7,3 +7,6 @@
 [submodule "repo/hyperframe"]
 	path = repo/hyperframe
 	url = git@github.com:LmeSzinc/hyperframe.git
+[submodule "repo/hpack"]
+	path = repo/hpack
+	url = git@github.com:LmeSzinc/hpack.git
