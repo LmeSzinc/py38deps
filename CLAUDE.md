@@ -32,6 +32,12 @@ envs/cp314/python.exe
 envs/cp314t/python.exe
 ```
 
+### git commit 要求
+
+在修改完依赖之后，在 submodule 中执行 `git commit`，但是禁止 `git push`。
+
+在修改完依赖之后，不要自动在 py38deps 仓库中提交来更新 submodule 引用，让用户自己确认 ci 运行正常再让用户自己 commit。
+
 ### 优先使用codewhale内置工具
 
 优先使用 codewhale 内置工具而不是调用外部命令行。如果遇到权限问题再去尝试使用命令行访问。如果在任务中多次需要访问一个外部路径，提示用户可以执行 `/trust add {PATH}` 添加信任，这样下一次可以使用内置工具进行访问。
@@ -172,6 +178,39 @@ git checkout <BACKPORT_BRANCH>
 >
 > 对于需要编译的库，才安装到环境中。
 
+## 本地 tox 验证（如果项目使用 tox）
+
+如果项目使用了 tox（pyproject.toml 中有 `[tool.tox]` 或存在 `tox.ini`），**必须在本地完整模拟 CI 的 tox 运行**，不能只直接跑 pytest。直接跑 pytest 会漏掉 tox 特有的问题（依赖组解析、sdist 构建安装、coverage 命令、`base_python` 解释器解析、gh-actions 映射过滤等），反复 push 会浪费 CI 资源。
+
+实例教训（hpack 移植，2026-08）：上游 pyproject.toml 写的是 `[tool.pytest]`（非标准键，pytest 官方是 `[tool.pytest.ini_options]`），pytest 9.x 恰好能读、pytest 8.x 读不到，导致 cp38/cp39 下 `testpaths` 失效、`bench/` 被收集、缺 pytest-benchmark 报 setup error——直接跑 `pytest tests/` 完全发现不了，只有完整 tox 模拟才暴露。
+
+模拟方法：tox-gh-actions 会按**运行 tox 的解释器版本**匹配 gh-actions 映射，得出该 job 要运行的 env 列表，因此每个 job 用对应版本的 python 运行 tox（3.8 job 用 cp38 的 python）。
+
+```powershell
+# 1) 在对应版本环境安装 tox + tox-gh-actions（cp38 下自动解析到最后一个支持 3.8 的 tox 4.23.2）
+& "E:\ProgramData\Pycharm\py38deps\envs\cp38\python.exe" -m pip install "tox>=4.23.2" "tox-gh-actions"
+
+# 2) tox 按 env 名找解释器（py38 -> python3.8），portable python 只有 python.exe，创建硬链接并加入 PATH
+New-Item -ItemType HardLink -Path "envs\cp38\python3.8.exe" -Target "envs\cp38\python.exe"
+$env:PATH = "E:\ProgramData\Pycharm\py38deps\envs\cp38;$env:PATH"
+
+# 3) 设置 GitHub Actions 环境变量（必须与运行 tox 在同一条命令内，环境变量不跨命令保留）
+$env:GITHUB_ACTIONS="true"; $env:GITHUB_WORKFLOW="CI"; $env:GITHUB_JOB="tox"
+$env:GITHUB_RUN_ID="1"; $env:GITHUB_REF="refs/heads/master"; $env:GITHUB_EVENT_NAME="push"
+$env:GITHUB_REPOSITORY="python-hyper/hpack"; $env:GITHUB_ACTOR="test"; $env:GITHUB_SHA="deadbeef"
+
+# 4) 完整跑该 job 的 env（等价于 CI 的 Initialize + Test 两步）
+cd "E:\ProgramData\Pycharm\py38deps\repo\<DEP_NAME>"
+& "E:\ProgramData\Pycharm\py38deps\envs\cp38\python.exe" -m tox --parallel auto
+```
+
+注意事项：
+
+- `--notest` 只创建 env 并安装依赖，用于快速验证解释器查找、依赖解析、sdist 构建；完整验证必须跑 `tox --parallel auto`（等价 CI 的 `tox --parallel auto --notest` + `tox --parallel 0`）
+- tox-gh-actions 只保留 gh-actions 映射中、且存在于 `env_list` 的 env（未定义的残留 env 名如 h2spec 会被静默过滤，不会报错）
+- 映射里 `base_python` 指定了特定版本解释器的 env（如 packaging 的 `python3.14`），本地必须提供对应解释器（硬链接 + PATH），否则报 `could not find python interpreter matching any of the specs`——CI runner 的系统 python 未必有该版本，本地验证能提前发现这类问题
+- 模拟完清理：删除硬链接与 `.tox/`、`dist/` 目录
+
 ## 版本 Cheatsheet（构建与测试工具速查）
 
 以下版本限制基于 cp38 ~ cp314 全环境实测（hyperframe 移植时验证，2026-08），后续适配其他库时直接套用，无需再纠结版本选择。
@@ -254,6 +293,22 @@ $env:PYTHONPATH="src"
 - 以最新发布版 tag 为基线，不要引入未发布 commit（见"反向移植流程"第 1 条）
 
 ## CI 配置：手动触发与产物上传
+
+### fail-fast
+
+矩阵 job 中某个版本失败时，默认（`fail-fast: true`）会取消其余还在运行的 job，一次只能看到第一个失败。移植后应设置 `fail-fast: false`，让所有版本跑完并一次性暴露所有问题，避免反复触发 CI：
+
+```yaml
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - "3.8"
+        - "3.9"
+        ...
+```
+
+### 手动触发与产物上传
 
 官方仓库通常配置了自动发布流程（打 tag 自动构建并发布到 PyPI / GitHub Release），而我们的二次开发仓库无法自动发布，因此移植后的 CI 需要额外做两件事：
 
