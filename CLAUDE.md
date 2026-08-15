@@ -123,6 +123,10 @@ EOF
 
 如果需要临时执行的代码过于复杂，或者需要 stdin，那么在项目根目录编写临时文件来运行它。
 
+### 临时文件要求
+
+如果需要下载临时文件，下载到项目根目录的 tmp 文件夹，不要下载到系统 temp 目录
+
 ## 创建移植库流程
 
 在创建新的移植库之前，需要知道：
@@ -362,6 +366,32 @@ $env:PYTHONPATH="src"
 - twine 5.x 不支持 Metadata-Version 2.4（新版 setuptools 77+ 构建产物默认为 2.4，`twine check` 会报 `InvalidDistribution: Metadata is missing required fields: Name, Version`）。packaging 依赖建议：`"twine>=6.1.0,<6.2 ; python_version < '3.9'"` + `"twine>=6.2.0,<7 ; python_version >= '3.9'"`（twine 6.2 起要求 >=3.9）
 - ruff 新版会把 preview 规则转正，导致 `lint.select = ["ALL"]` 下旧版源码的 lint 失败（实例：PLC0415 `import` should be at the top-level，v6.1.0 时代不报、ruff 0.16 起报）。应对：跟随上游的 `# noqa` 修复，而不是限制 ruff 版本
 - 以最新发布版 tag 为基线，不要引入未发布 commit（见"反向移植流程"第 1 条）
+
+### manylinux2014 镜像的 Python 支持（PyAV 移植时验证，2026-08）
+
+- manylinux2014 镜像的 `latest`（2026 年）已移除 CPython 3.7/3.8 的 `/opt/python` 解释器，构建 cp37/cp38 会报 `executable doesn't exist in image`
+- pypa/manylinux 于 **2025-05-08**（commit `87f462b` "Drop CPython 3.6 & 3.7"）从镜像移除 cp37
+- **最后一个含 cp37 的镜像 tag：`quay.io/pypa/manylinux2014_x86_64:2025.05.03-1`**（i686/aarch64 同样，三个架构 tag 均存在且可拉取）
+- 该镜像同时满足：
+  - 含 CPython 3.7.17 / 3.8.20（2025-05-03 构建，早于 05-08 的移除 commit）
+  - yum 源已指向 CentOS 7 vault（`fixup-mirrors.sh` 于 2024-07-01 引入），CentOS 7 EOL 后 `yum install` 仍可用
+- 参考：cffi 的 cp38 构建用 `quay.io/pypa/manylinux2014:2026.05.02-2`（含 cp38，不含 cp37）
+- manylinux-interpreters（镜像内工具）只能按需安装 PyPy/GraalPy，**不能**补装 CPython；CPython 必须预装于镜像
+- cibuildwheel 配置示例：
+
+  ```yaml
+  CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux2014_x86_64:2025.05.03-1
+  CIBW_MANYLINUX_I686_IMAGE: quay.io/pypa/manylinux2014_i686:2025.05.03-1
+  CIBW_MANYLINUX_AARCH64_IMAGE: quay.io/pypa/manylinux2014_aarch64:2025.05.03-1
+  ```
+
+### musllinux 镜像的 Python 支持（PyAV 移植时验证，2026-08）
+
+- musllinux_1_1 镜像官方已停止更新，**最后一个 tag：`quay.io/pypa/musllinux_1_1_x86_64:2024.06.22-2`**（aarch64 同样存在，`musllinux_1_1_aarch64:2024.06.22-2`），含 CPython 3.6 ~ 3.13（含 cp38/cp39/cp310）
+- musllinux_1_2 镜像仍持续更新（如 `quay.io/pypa/musllinux_1_2_x86_64:2026.05.02-2` 含 cp38）
+- auditwheel 的 musllinux_1_1 / 1_2 policy 完全相同（均无符号版本限制，1_1 priority 100 > 1_2 90），用 1_1 镜像构建会自动打 `musllinux_1_1` 标签
+- 判断 vendor 库是否兼容 musl 1.1：对比其 UND 符号与 Alpine 3.11 的 musl 1.1.24 libc（`ld-musl-x86_64.so.1`）导出集。实测 pyav-ffmpeg 8.1.2-1 的 musllinux 库引用的 libc 符号全部在 musl 1.1.24 内，可同时构建 musllinux_1_1 与 1_2（cibuildwheel 分两次调用，各自设置 `CIBW_MUSLLINUX_*_IMAGE`，产物标签不同不会覆盖）
+- 注意：musllinux 的 cp38 测试依赖 numpy 装不上（numpy 1.24.4 是最后支持 3.8 的版本且无 musllinux wheel），cp38-musllinux 需加入 `CIBW_TEST_SKIP`
 
 ## CI 配置：手动触发与产物上传
 
