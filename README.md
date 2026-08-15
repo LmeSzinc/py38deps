@@ -15,3 +15,4 @@ As older versions of Python gradually end of like, many Python dependencies have
 | cffi              | [python-cffi/cffi](https://github.com/python-cffi/cffi) | [LmeSzinc/cffi](https://github.com/LmeSzinc/cffi) | 2.1.1          | cp38~cp15       |
 | attrs             | [python-attrs/attrs](https://github.com/python-attrs/attrs) | [LmeSzinc/attrs](https://github.com/LmeSzinc/attrs) | 26.1.0         | cp38+           |
 | idna              | [kjd/idna](https://github.com/kjd/idna) | [LmeSzinc/idna](https://github.com/LmeSzinc/idna) | 3.18           | cp38+           |
+| trio              | [python-trio/trio](https://github.com/python-trio/trio) | [LmeSzinc/trio](https://github.com/LmeSzinc/trio) | 0.34.0         | cp38+           |

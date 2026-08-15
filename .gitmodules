@@ -28,3 +28,9 @@
 [submodule "repo/anyio"]
 	path = repo/anyio
 	url = git@github.com:LmeSzinc/anyio.git
+[submodule "repo/trio"]
+	path = repo/trio
+	url = git@github.com:LmeSzinc/trio.git
+[submodule "repo/hypercorn"]
+	path = repo/hypercorn
+	url = git@github.com:LmeSzinc/hypercorn.git

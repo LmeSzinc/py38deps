@@ -182,6 +182,73 @@ git checkout <BACKPORT_BRANCH>
 >
 > 对于需要编译的库，才安装到环境中。
 
+## 构建前检查：自动生成的版本号
+
+部分库使用 setuptools-scm / hatch-vcs 等工具根据 git 状态自动生成版本号。官方在 tag 上构建所以是正式版本；但我们的 backport 分支在 tag 之后有额外 commit，构建时版本号会自动变成下一个 dev 版本（实例：msgspec 生成 `0.21.2.dev30+g...`），导致 wheel 文件名出现 dev 版本号、无法对应 `wheel/{DEP}/{VERSION}` 目录。**构建前必须检查并处理。**
+
+### 检查方法
+
+1. 查看 `pyproject.toml` / `setup.py` / `setup.cfg`：
+   - `[project]` 中 `dynamic = ["version"]`（或 setup.py 中 `use_scm_version` / versioneer）
+   - build-system requires 包含 `setuptools-scm`、`hatch-vcs` 等
+   - 存在 `[tool.setuptools_scm]` / `[tool.hatch.version]`（`source = "vcs"`）段
+2. 安全的写法（无需处理）：
+   - `version = "x.y.z"` 静态写死（anyio、cffi、hypercorn）
+   - `dynamic = ["version"]` + `[tool.setuptools.dynamic] version = {attr = "pkg.__version__"}`，且源码中 `__version__` 是硬编码字符串（h2、hpack、hyperframe、trio、wsproto、idna）
+   - setup.py 从硬编码头文件宏读取版本（python-zstandard）
+
+### 修改方案
+
+#### 方案 A：静态版本（源码不依赖自动生成文件时，参考 attrs commit 162a9a4）
+
+- `[project]` 加 `version = "x.y.z"`，`dynamic` 移除 `"version"`
+- 删除 `[tool.setuptools_scm]` / `[tool.hatch.version]` 段
+- 从 build-system requires 移除 scm 依赖
+
+#### 方案 B：自定义 version_scheme（源码从 `_version.py` 导入 `__version__` 时，参考 msgspec）
+
+官方产物（wheel/sdist）里包含 scm 生成的 `_version.py`，如果 `__init__.py` 依赖它，不要删掉机制，改为固定 scheme 让 scm 自动生成内容一致的文件：
+
+```toml
+[tool.setuptools_scm]
+version_file = "src/msgspec/_version.py"   # 原有配置保留
+parentdir_prefix_version = "msgspec-"       # 原有配置保留
+version_scheme = "scm_version:scheme"       # 新增：固定版本
+local_scheme = "no-local-version"           # 新增：去掉 git node/dirty 产生的 +g... local 段
+```
+
+项目根新建 `scm_version.py`：
+
+```python
+def scheme(version):
+    """Always report the pinned backport version."""
+    return "x.y.z"
+```
+
+还需：
+- `MANIFEST.in` 加 `include scm_version.py`（保证 sdist 携带，从 sdist 构建 wheel 时 scheme 可导入）
+- `setup.py` 顶部加 `sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))`（PEP 517 隔离构建时项目根不在 sys.path，不加会报 `Couldn't find any implementations for entrypoint`）
+
+### 注意与坑
+
+- **不要打 tag 固定版本**：每次构建/修复问题都要删 tag 再打，维护成本高
+- **不要用 `tag_regex` + `fallback_version`**：describe 成功时 tag 不匹配会直接报错而非 fallback；fallback 分支里 distance 仍参与计算，照样产出 dev 版本
+- **验证时不要用 `setuptools_scm.get_version(root=".")`**：它是程序化 API，不读 pyproject 配置；用 `Configuration.from_file` 或直接构建 sdist 验证：
+
+```powershell
+cd "E:\ProgramData\Pycharm\py38deps\repo\msgspec"
+@'
+from setuptools_scm import Configuration
+from setuptools_scm._get_version_impl import _get_version
+cfg = Configuration.from_file("pyproject.toml")
+print(_get_version(cfg, force_write_version_files=False))
+'@ | & "E:\ProgramData\Pycharm\py38deps\envs\cp38\python.exe"
+```
+
+- 构建 sdist 后检查：文件名与 PKG-INFO 版本正确、`_version.py` 由 scm 生成且版本正确、`scm_version.py` 在 sdist 中
+- 无 tag 环境也要验证（CI shallow checkout 场景）：`git clone --no-tags --depth 1` 到临时目录再跑上述检查
+- 版本升级时记得同步修改 `scm_version.py`（方案 B）或静态 `version`（方案 A）
+
 ## 本地 tox 验证（如果项目使用 tox）
 
 如果项目使用了 tox（pyproject.toml 中有 `[tool.tox]` 或存在 `tox.ini`），**必须在本地完整模拟 CI 的 tox 运行**，不能只直接跑 pytest。直接跑 pytest 会漏掉 tox 特有的问题（依赖组解析、sdist 构建安装、coverage 命令、`base_python` 解释器解析、gh-actions 映射过滤等），反复 push 会浪费 CI 资源。
