@@ -37,9 +37,9 @@
 [submodule "repo/PyAV"]
 	path = repo/PyAV
 	url = git@github.com:LmeSzinc/PyAV.git
-[submodule "repo/multipart"]
-	path = repo/multipart
-	url = git@github.com:LmeSzinc/multipart.git
 [submodule "repo/httpx2"]
 	path = repo/httpx2
 	url = git@github.com:LmeSzinc/httpx2.git
+[submodule "repo/python-multipart"]
+	path = repo/python-multipart
+	url = git@github.com:LmeSzinc/python-multipart.git
