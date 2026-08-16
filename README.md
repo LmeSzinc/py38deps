@@ -18,3 +18,4 @@ As older versions of Python gradually end of like, many Python dependencies have
 | trio              | [python-trio/trio](https://github.com/python-trio/trio) | [LmeSzinc/trio](https://github.com/LmeSzinc/trio) | 0.34.0         | cp38+           |
 | PyAV              | [PyAV-Org/PyAV](https://github.com/PyAV-Org/PyAV) | [LmeSzinc/PyAV](https://github.com/LmeSzinc/PyAV) | 18.1.0         | cp38~cp14       |
 | hypercorn         | [pgjones/hypercorn](https://github.com/pgjones/hypercorn) | [LmeSzinc/hypercorn](https://github.com/LmeSzinc/hypercorn) | 0.18.0         | cp38+           |
+| anyio             | [agronholm/anyio](https://github.com/agronholm/anyio) | [LmeSzinc/anyio](https://github.com/LmeSzinc/anyio) | 4.14.2         | cp38+           |
